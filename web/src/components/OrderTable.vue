@@ -17,6 +17,8 @@ const emit = defineEmits<{
 
 // 手机上少放几列：订单号 / 金额 / 状态足够看懂，其余横向挤进去反而看不清
 const isMobile = useMediaQuery('(max-width: 720px)');
+// 窄屏只留三列，列宽要压到屏幕内，不然会出现横向滚动
+const w = (desktop: string, mobile: string) => (isMobile.value ? mobile : desktop);
 
 function onPage(page: number) {
   emit('page-change', { page, pageSize: props.result?.pageSize ?? 10 });
@@ -39,7 +41,7 @@ function onSize(pageSize: number) {
       element-loading-text="查询中"
       class="grid"
     >
-      <el-table-column prop="orderNo" label="订单号" min-width="150">
+      <el-table-column prop="orderNo" label="订单号" :min-width="w('140', '128')">
         <template #default="{ row }">
           <span class="mono cell-no">{{ row.orderNo }}</span>
         </template>
@@ -47,7 +49,7 @@ function onSize(pageSize: number) {
 
       <el-table-column v-if="!isMobile" prop="customer" label="客户" min-width="130" show-overflow-tooltip />
 
-      <el-table-column prop="amount" label="金额" min-width="120" align="right">
+      <el-table-column prop="amount" label="金额" :min-width="w('120', '104')" align="right">
         <template #default="{ row }">
           <span class="mono cell-amount">{{ formatMoney(row.amount) }}</span>
         </template>
@@ -55,7 +57,7 @@ function onSize(pageSize: number) {
 
       <el-table-column v-if="!isMobile" prop="region" label="地区" min-width="90" />
 
-      <el-table-column prop="status" label="状态" min-width="100">
+      <el-table-column prop="status" label="状态" :min-width="w('100', '88')">
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)" effect="light" size="small" round>{{ row.status }}</el-tag>
         </template>

@@ -46,7 +46,6 @@ export interface QueryResult {
   plan: QueryPlan;
   source: PlanSource;
   warning: string | null;
-  aiConfigured: boolean;
   rows: Order[];
   /** 真实命中数 */
   total: number;
@@ -54,9 +53,7 @@ export interface QueryResult {
   returned: number;
   page: number;
   pageSize: number;
-  pages: number;
-  stats: { sum: number; avg: number };
-  skipped: string[];
+  stats: { sum: number };
   /** 这一轮是否接着上一轮改的 */
   usedContext: boolean;
   /** 没解析出任何条件：展示引导态，而不是甩一张全量表 */

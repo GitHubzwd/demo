@@ -133,15 +133,12 @@ function buildPayload({ question, plan, source, warning, parseMs, firstTokenMs =
     usedContext: Boolean(context),
     /** 没解析出任何条件：前端换成「没看懂」的引导态，而不是甩一张全量表 */
     unparsed: isUnparsed(plan, source),
-    aiConfigured: aiConfigured(),
     rows: pageData.rows,
     total: result.total, // 真实命中数
     returned: limited.length, // 受 limit 约束后的条数
     page: pageData.page,
     pageSize: pageData.pageSize,
-    pages: pageData.pages,
     stats: result.stats,
-    skipped: result.skipped,
     parseMs: Math.round(parseMs),
     firstTokenMs,
     queryMs: Date.now() - t0 - Math.round(parseMs),

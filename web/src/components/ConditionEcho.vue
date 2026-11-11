@@ -19,7 +19,6 @@ const props = defineProps<{
   firstTokenMs: number | null;
   draft: string;
   phase: 'idle' | 'streaming' | 'planned' | 'done';
-  total: number | null;
   /** 这一轮是不是接着上一轮改的 */
   usedContext: boolean;
   /** 没解析出任何条件 */
@@ -77,8 +76,6 @@ const chips = computed<Chip[]>(() => {
     });
   }
 
-  list.push({ key: 'limit', field: '返回', op: '', value: `最多 ${plan.limit} 条`, kind: 'limit' });
-
   return list;
 });
 
@@ -86,7 +83,9 @@ const chips = computed<Chip[]>(() => {
 const rawText = computed(() => (props.draft.trim() ? props.draft : JSON.stringify(props.plan ?? {}, null, 2)));
 
 const timing = computed(() => {
-  if (props.firstTokenMs === null) return `${props.parseMs}ms 解析`;
+  // 规则兜底没有「首字」这回事，解析耗时为 0 时干脆不显示
+  if (props.source === 'replay') return `沿用上次条件 · ${props.parseMs}ms`;
+  if (props.firstTokenMs === null) return props.parseMs > 0 ? `${props.parseMs}ms 解析` : '';
   return `首字 ${(props.firstTokenMs / 1000).toFixed(2)}s · 解析 ${(props.parseMs / 1000).toFixed(2)}s`;
 });
 </script>
@@ -106,10 +105,7 @@ const timing = computed(() => {
     <div class="head">
       <span class="src" :class="source">{{ sourceLabel }}</span>
       <span v-if="usedContext" class="ctx">接上一轮</span>
-      <span class="timing mono">{{ timing }}</span>
-      <span v-if="total !== null && !unparsed" class="hit">
-        命中 <b>{{ total }}</b> 条
-      </span>
+      <span v-if="timing" class="timing mono">{{ timing }}</span>
     </div>
 
     <el-alert v-if="warning" class="banner" :title="warning" type="warning" :closable="false" show-icon />
@@ -301,18 +297,6 @@ const timing = computed(() => {
   font-size: 12px;
 }
 
-.hit {
-  margin-left: auto;
-  color: var(--text-2);
-  font-size: 12.5px;
-}
-
-.hit b {
-  color: var(--accent);
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-}
-
 .banner :deep(.el-alert__title) {
   font-size: 12.5px;
   line-height: 1.6;
@@ -327,9 +311,9 @@ const timing = computed(() => {
 .chip {
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
-  padding: 6px 11px;
-  border-radius: 10px;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 9px;
   border: 1px solid var(--line);
   background: #fbfbfd;
   font-size: 13px;

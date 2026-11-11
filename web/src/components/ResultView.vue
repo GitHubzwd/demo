@@ -122,10 +122,8 @@ watch([groupBy, view], () => {
         <span>共 <b>{{ result.total }}</b> 条</span>
         <span class="sep" />
         <span>金额合计 <b>{{ formatMoney(result.stats.sum) }}</b></span>
-        <span class="sep" />
-        <span>平均 <b>{{ formatMoney(result.stats.avg) }}</b></span>
         <span v-if="result.returned < result.total" class="cap">
-          本次只返回前 {{ result.returned }} 条（模型给的上限）
+          本次只返回前 {{ result.returned }} 条
         </span>
       </div>
       <div v-else class="stats muted">查一次之后这里会显示条数和金额合计</div>

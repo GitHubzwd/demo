@@ -78,7 +78,7 @@ export function runQuery(allRows, query) {
   return {
     rows: matched,
     total,
-    stats: { sum: Math.round(sum * 100) / 100, avg: total ? Math.round((sum / total) * 100) / 100 : 0 },
+    stats: { sum: Math.round(sum * 100) / 100 },
     skipped,
   };
 }

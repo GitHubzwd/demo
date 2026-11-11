@@ -42,7 +42,6 @@ let controller: AbortController | null = null;
 
 const streaming = computed(() => phase.value === 'streaming');
 const examples = computed(() => (meta.value?.examples?.length ? meta.value.examples : FALLBACK_EXAMPLES));
-const total = computed(() => result.value?.total ?? null);
 
 const statusText = computed(() => {
   if (!meta.value) return '连接中…';
@@ -155,7 +154,7 @@ async function goPage({ page, pageSize }: { page: number; pageSize: number }) {
   <div class="page">
     <header class="hero">
       <div class="top">
-        <span class="badge">Day 8 · 异常兜底</span>
+        <span class="badge">自然语言查询 · Demo</span>
         <span class="status" :class="meta?.aiConfigured ? 'ok' : 'warn'">
           <span class="dot" />{{ statusText }}
         </span>
@@ -205,7 +204,6 @@ async function goPage({ page, pageSize }: { page: number; pageSize: number }) {
         :first-token-ms="firstTokenMs"
         :draft="draft"
         :phase="phase"
-        :total="total"
         :used-context="usedContext"
         :unparsed="unparsed"
       />
@@ -215,7 +213,7 @@ async function goPage({ page, pageSize }: { page: number; pageSize: number }) {
       <div class="step">
         <span class="no">3</span>
         <h2>结果</h2>
-        <span class="hint">先在表格里确认数据，再切图表看结构</span>
+        <span class="hint">表格看明细，图表看结构</span>
       </div>
       <ResultView :result="result" :loading="loading" @page-change="goPage" />
     </section>

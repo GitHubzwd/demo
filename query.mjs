@@ -97,7 +97,7 @@ function main() {
   }
   console.log('-'.repeat(88));
   console.log(
-    `命中 ${result.total} 条，合计 ¥${result.stats.sum.toFixed(2)}，平均 ¥${result.stats.avg.toFixed(2)}，耗时 ${ms}ms`,
+    `命中 ${result.total} 条，合计 ¥${result.stats.sum.toFixed(2)}，耗时 ${ms}ms`,
   );
   if (result.total > top.length) console.log(`（只打印前 ${top.length} 条）`);
 }
