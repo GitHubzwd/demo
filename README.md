@@ -5,7 +5,8 @@
 ![查询结果](docs/ui-result.png)
 
 - **在线演示**：[demo-dpe46l7hm0pu.zh-cn.edgeone.cool](https://demo-dpe46l7hm0pu.zh-cn.edgeone.cool?eo_token=06bc3055de1a6a7e52fb28e25d939d00&eo_time=1794383978)
-  （EdgeOne **预览地址**，`eo_token` 由 URL 换 Cookie、**3 小时过期**；长期地址要实名 + 域名，见 4.3）
+  （EdgeOne **预览地址**：`eo_token` 会换成 Cookie，**3 小时左右失效**；失效后需在控制台重新复制。长期地址要实名 + 域名，见 4.3）
+  地址栏支持 `?q=上个月华东区的退款单` 这类深链，复制链接即可复现同一次查询。
 - **技术栈**：Vue 3 + TS + Vite + Element Plus + ECharts ｜ Node.js（Serverless）｜ DeepSeek ｜ 腾讯云 EdgeOne
 - **一句话结论**：10 句自然语言里 10 句能正确转成条件；首字 0.3–0.9s，点查询到出结果 0.6–1.3s
 

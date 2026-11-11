@@ -34,6 +34,9 @@ const loading = ref(false);
 // 多轮：只记上一轮。追问是「在上一轮基础上改」，不是聊天记录，不需要存全部历史
 const context = ref<TurnContext | null>(null);
 const usedContext = ref(false);
+// 首屏自动跑的那一次不算「追问」，别一打开就顶一条「追问中」的条
+const showCtx = ref(false);
+let autoQuery = false;
 // 没解析出条件时，不让它变成「一次成功的全量查询」
 const unparsed = ref(false);
 
@@ -55,8 +58,28 @@ onMounted(async () => {
     meta.value = await fetchMeta();
   } catch (e) {
     error.value = toMessage(e);
+    return;
+  }
+
+  // 首屏就把「一句话 → 条件 → 表格」跑一遍：空白的三个卡片，陌生人看了不知道能干嘛
+  const fromUrl = new URLSearchParams(location.search).get('q')?.trim();
+  question.value = fromUrl || examples.value[0] || '';
+  if (question.value) {
+    autoQuery = true;
+    await search();
   }
 });
+
+/** 把当前问题写进地址栏：别人复制链接就能看到同一次查询 */
+function syncUrl(q: string) {
+  try {
+    const url = new URL(location.href);
+    url.searchParams.set('q', q);
+    history.replaceState(null, '', url);
+  } catch {
+    /* 地址栏不可写就算了，不影响查询 */
+  }
+}
 
 /** 新问题：流式解析 + 查询 */
 async function search() {
@@ -65,6 +88,9 @@ async function search() {
     error.value = '先写一句要查什么，比如「上个月华东区退款超过 500 的订单」';
     return;
   }
+
+  const isAuto = autoQuery;
+  autoQuery = false;
 
   controller?.abort();
   const ctrl = new AbortController();
@@ -104,9 +130,13 @@ async function search() {
         result.value = payload;
         unparsed.value = payload.unparsed;
         phase.value = 'done';
+        syncUrl(payload.question);
         // 这一轮结束，把「问题 + 条件」留给下一轮当上文；
         // 但没解析出条件的就别留了，否则下一句会变成对空气的追问
-        if (!payload.unparsed) context.value = { question: payload.question, plan: payload.plan };
+        if (!payload.unparsed) {
+          context.value = { question: payload.question, plan: payload.plan };
+          showCtx.value = !isAuto;
+        }
       },
     });
   } catch (e) {
@@ -132,6 +162,7 @@ function cancel() {
 function clearContext() {
   context.value = null;
   usedContext.value = false;
+  showCtx.value = false;
   notice.value = '已断开上文，下一句按新问题解析。';
 }
 
@@ -181,7 +212,7 @@ async function goPage({ page, pageSize }: { page: number; pageSize: number }) {
         @cancel="cancel"
       />
 
-      <div v-if="context" class="ctx-bar">
+      <div v-if="context && showCtx" class="ctx-bar">
         <span class="ctx-dot" />
         <span class="ctx-label">追问中</span>
         <span class="ctx-text">上一轮：{{ context.question }}</span>
@@ -219,10 +250,10 @@ async function goPage({ page, pageSize }: { page: number; pageSize: number }) {
     </section>
 
     <footer class="foot">
-      <span v-if="meta">数据源：orders.json，{{ meta.totalOrders }} 条 mock 订单 · 今天是 {{ meta.today }}</span>
+      <span v-if="meta">数据源：orders.json · {{ meta.totalOrders }} 条 mock 订单 · 今天是 {{ meta.today }}</span>
       <span v-else>数据源：orders.json（本地 mock 数据）</span>
       <span class="dot-sep" />
-      <span>登录、权限、真实数据库都没做 —— 这是故意的</span>
+      <span>Vue 3 + Element Plus + ECharts · DeepSeek · 条件走白名单，不生成 SQL</span>
     </footer>
   </div>
 </template>
