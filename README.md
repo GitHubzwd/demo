@@ -151,8 +151,8 @@ POST /api/query   → { question, plan?, page?, pageSize? }
 node query.mjs                                        # Day 2 的命令行版本
 node query.mjs --ask "上个月华东区退款超过 500 的订单"   # 不需要 Key
 
-cd web
-npm test              # 规则解析的 12 个回归用例
+npm test              # 33 条离线用例（12 规则解析 + 14 异常路径 + 7 汇总口径）
+npm run test:http     # 6 条接口层用例（需要 Key，会真调模型）
 npm run typecheck     # 类型检查
 ```
 
@@ -164,78 +164,91 @@ Day 3 到此为止，多轮 / 图表 / 登录都不在这一版里 —— 先让
 
 ---
 
-## 4. Day 4：上线（Vercel）✅
+## 4. Day 4：上线 ✅
 
 Day 3 的 `/api` 只活在 Vite 的 dev server 里，`dist` 丢到任何静态托管上点查询就是 404。
-Day 4 把它拆成「静态产物 + 真正的 Function」，而且本地就能验证这套组合。
+这一节把它拆成「静态产物 + 真正的云函数」，而且本地就能验证这套组合。
 
 ### 4.1 本地跑生产包
 
 ```powershell
 npm install
-npm run build      # 构建 web/dist
+npm run build      # 先编译数据，再构建 web/dist
 npm start          # http://localhost:4173 —— 静态产物 + /api
 ```
 
-`npm start` 用的是 `server.mjs`：托管 `web/dist`，`/api/*` 交给 `api/*.js` 这两个 handler ——
-**和 Vercel 上跑的是同一份代码**，所以「本地行、线上不行」这类问题推之前就能撞见。
+`npm start` 用的是 `server.mjs`：托管 `web/dist`，`/api/*` 交给 `api/*.js` ——
+和云端跑的是同一份 core，所以「本地行、线上不行」这类问题推之前就能撞见。
 
-### 4.2 结构：三个入口，一份逻辑
+### 4.2 结构：四个入口，一份逻辑
 
 ```
-api/meta.js   Vercel Function ┐
-api/query.js  Vercel Function ├→ web/server/core.mjs  ← 全部业务逻辑
-api/stream.js Vercel Function │     （解析 / 过滤 / 分页 / 限流）
-server.mjs    本地 npm start   │
-web/server/plugin.mjs  npm run dev ┘
-                    └→ web/server/sse.mjs  ← 流式协议层
+cloud-functions/api/*.js   EdgeOne Cloud Functions ┐
+api/*.js                   Vercel Functions        ├→ web/server/core.mjs
+server.mjs                 本地 npm start          │    （解析/过滤/分页/限流）
+web/server/plugin.mjs      npm run dev             ┘
+                └→ http.mjs（Fetch 适配）/ sse.mjs（node 适配）
 ```
 
-### 4.3 部署
+两套适配层值得说明：Vercel 那套是 node 的 `(req, res)`，EdgeOne 是 `(request) => Response`。
+**换平台只换壳，业务逻辑一行不动**——这次迁移就是这么活下来的。
 
-```powershell
-# 1) 这台机器还没装 git
-winget install --id Git.Git -e --source winget
+### 4.3 为什么最后部署在 EdgeOne，不是 Vercel
 
-# 2) 首次提交
-git init
-git add .
-git commit -m "Day 4: 可上线的订单查询 demo"
+Vercel 那边其实一切正常：构建 OK、状态 `Ready`、错误率 0%、缩略图里能看到界面渲染出来了。
+问题在**访问**：
 
-# 3) 推到 GitHub，在 Vercel 里 Import 这个仓库
-#    Root Directory 保持仓库根，vercel.json 已经写好构建与函数配置
+```
+demo-xxx.vercel.app → 2a03:2880:f11a:83:face:b00c:0:25de   ← Facebook 的 IPv6 段
+                    → 157.240.17.41 / 4.78.139.50          ← 每次解析还不一样
+直连 Vercel 边缘 76.76.21.21:443 → ECONNRESET
 ```
 
-Vercel 项目设置里**必须加环境变量**（`.env.local` 不进 git，线上靠这里注入）：
+`face:b00c` 是 Facebook 机房的标志，典型的 **DNS 污染**；再试直连 IP、DoH、第三方代理，全部不通。
+同一时刻 `api.github.com`、`github.com:22` 都是通的——所以不是断网，是这条路不通。
 
-| Key | Value |
+**结论：能部署 ≠ 能访问。** 在线地址是给面试官看的，所以换成国内可达的腾讯云 EdgeOne。
+
+### 4.4 迁移只改了三处
+
+| 改动 | 为什么 |
 |---|---|
-| `DEEPSEEK_API_KEY` | 你的 key |
+| `scripts/gen-data.mjs`：`orders.json` → `orders.data.mjs` | 云函数不保证能读到项目文件，`fs.readFileSync` 本地好好的、线上就是 `ENOENT`。改成静态 import 后打包器会把数据内联进函数 |
+| `web/server/http.mjs` + `cloud-functions/api/*.js` | EdgeOne 用 Fetch 风格 `(request) => Response`；SSE 用 `ReadableStream` 推，`cancel()` 时 abort 上游 |
+| `edgeone.json` | 构建命令 / 输出目录 |
 
-不加也能跑，但线上会退化成规则兜底，页面会明确写出来。CLI 方式：
+### 4.5 部署步骤（EdgeOne）
 
-```powershell
-npm i -g vercel
-vercel login
-vercel env add DEEPSEEK_API_KEY production
-vercel --prod
-```
+1. https://console.cloud.tencent.com/edgeone → 登录 → 左侧 **Makers**（原 Pages）→ 建一个 **Space**
+2. **新建项目 → 导入 Git 仓库** → 授权 GitHub → 选 `GitHubzwd/demo`，分支 `main`
+3. 构建配置（仓库里有 `edgeone.json`，正常会自动读；要手填就照抄）：
 
-### 4.4 上线前踩掉/预判的四个坑
+   ```
+   installCommand  : npm install --no-audit --no-fund
+   buildCommand    : node scripts/gen-data.mjs && cd web && npm install --no-audit --no-fund && npm run build
+   outputDirectory : web/dist
+   ```
+4. 环境变量：`DEEPSEEK_API_KEY` = 你的 key（不加会退化成规则兜底，页面会写明）
+5. 部署 → 拿到域名 → **把「部署保护/预览鉴权」关掉**（见下面第 2 个坑）
 
-| 坑 | 处理 |
+### 4.6 踩到的坑
+
+| 坑 | 怎么回事 | 怎么解的 |
+|---|---|---|
+| Vercel 报 `functions.api/*.js.includeFiles should be string` | `includeFiles` 只收**字符串 glob**，我写成了数组 | 改成 `"orders.json"`；后来干脆把数据内联，这个配置也就不需要了 |
+| 预发布地址别人打不开 | 部署出来的 `?eo_token=...&eo_time=...` 是**预览地址**：302 到 `/` 并写入 **3 小时过期**的 Cookie，不带 token 直接 401 | 必须用 Production 域名 / 关掉部署保护，否则「陌生人 30 秒」无从谈起 |
+| 函数读不到 `orders.json` | 本地 `fs` 正常，云端没有这个文件 | 数据编译成模块内联（就是 4.4 第一条） |
+| 冷启动慢 | 首次请求要「边缘 → 源」建连 | 首字 1.6s → 预热后回到 0.5s 级；演示前先自己点一次 |
+
+### 4.7 线上验证（2026-11-11，EdgeOne）
+
+| 检查 | 结果 |
 |---|---|
-| `orders.json` 不会被自动打进 Function | `vercel.json` 的 `functions.includeFiles` 带上它；`core.mjs` 按 cwd 找，Vercel 上 cwd 是 `/var/task` |
-| 从仓库根跑时读不到 `web/.env.local`，`aiConfigured` 变 false | 环境文件改成多锚点查找（cwd / web / 仓库根）。**这个是真撞出来的**：`npm start` 第一次探测就发现 key 没读到 |
-| Hobby 计划函数 10s 上限，模型卡住会 504 | `parseWithAI` 超时收到 8s，超时即退回规则解析，用户照样拿到结果 |
-| 接口公开 = 谁都能刷你的额度 | `core.mjs` 里加了进程内限流（默认 20 次/分钟/IP）。**它是尽力而为**：跨实例不生效，要真限流得接 Upstash Redis |
+| 首页 | `200`，标题和 `/assets/index-*.js` 都正常 |
+| `/api/meta` | `200`，`aiConfigured: true`、`totalOrders: 5000` |
+| `/api/query` | `200`，模型给出 3 个条件，命中 23 条 |
+| `/api/stream` | `200 text/event-stream`；**100 段 delta 在 395ms 内陆续到达**（跨度接近 0 就是被缓冲了，说明 EdgeOne 没有缓冲，真流式） |
 
-### 4.5 这一版验证过的
-
-- `npm run build` → `web/dist` 1.33MB（gzip ≈ 375KB）
-- `npm start` 后在浏览器里真点一次：`AI 解析 · 585ms`，命中 130 条、只返回前 50 条、分页 5 页
-- 把 `api/` + `web/server/` + `orders.json` 单独拷到空目录（模拟 `/var/task` 的函数包）跑同一份 handler：meta / query / 400 / 405 全对
-- `plan.limit` 和分页口径终于对齐：命中 130 条时表格显示「本次只返回前 50 条（模型给的上限）」，分页也只到 5 页
 
 ---
 
@@ -440,17 +453,23 @@ return /无法解析/.test(plan.reason) || source === 'rule';
 
 ```
 ai-demo-starter/
-├─ api/                   # Vercel Functions：只做协议适配
-│  ├─ meta.js             # GET  /api/meta
-│  ├─ query.js            # POST /api/query（非流式：翻页用）
-│  ├─ stream.js           # POST /api/stream（SSE：新问题用）
-│  └─ summary.js          # POST /api/summary（图表汇总）
+├─ cloud-functions/       # EdgeOne Cloud Functions（线上主路径）
+│  └─ api/                # 文件即路由：api/meta.js → /api/meta
+│     ├─ meta.js
+│     ├─ query.js
+│     ├─ stream.js
+│     └─ summary.js
+├─ api/                   # Vercel Functions（备选，国内打不开 vercel.app）
+│  ├─ meta.js  query.js  stream.js  summary.js
+├─ edgeone.json           # 构建命令 / 输出目录
+├─ vercel.json            # 同上（备选）
 ├─ server.mjs             # 本地跑生产包：npm start
-├─ vercel.json            # 构建命令 / 输出目录 / 函数的 includeFiles
-├─ package.json           # 根脚本：dev / build / start / test
+├─ scripts/
+│  └─ gen-data.mjs        # orders.json → orders.data.mjs（构建期生成，已忽略）
+├─ package.json           # 根脚本：gen:data / dev / build / start / test
 ├─ spike.mjs              # Day1 技术验证
 ├─ gen-orders.mjs         # Day2 数据生成
-├─ orders.json            # 5000 条 mock（被 includeFiles 带进 Function）
+├─ orders.json            # 5000 条 mock（唯一数据源）
 ├─ query.mjs              # Day2 命令行版
 ├─ docs/                  # 截图
 └─ web/
@@ -462,16 +481,22 @@ ai-demo-starter/
    │  ├─ useMediaQuery.ts # 窄屏少渲染几列
    │  └─ format.ts        # 字段名、操作符、金额格式
    └─ server/             # 纯 Node ESM，不进前端产物
-      ├─ core.mjs         # 业务逻辑 + 限流 + 汇总（三个入口共用）
-      ├─ sse.mjs          # SSE 协议层：分帧、取消、错误事件
+      ├─ core.mjs         # 业务逻辑 + 限流 + 汇总（所有入口共用）
+      ├─ http.mjs         # Fetch 适配层（EdgeOne / Workers）：Request → Response
+      ├─ sse.mjs          # node 适配层（Vercel / 本地）：(req, res) + SSE
       ├─ schema.mjs       # 字段白名单 + prompt + 校验（唯一真源）
       ├─ parser.mjs       # 中文 → JSON：模型优先（含流式）、规则兜底
       ├─ engine.mjs       # JSON → 数组过滤 + 分页
       ├─ plugin.mjs       # 把 core 挂到 Vite 上
       ├─ parser.test.mjs  # 12 条：中文 → 条件的回归
       ├─ robust.test.mjs  # 14 条：白名单拦截、没看懂判定、错误文案
-      └─ summary.test.mjs # 7 条：图表汇总口径
+      ├─ summary.test.mjs # 7 条：图表汇总口径
+      └─ http.test.mjs    # 6 条：Fetch 适配层（需要 Key，npm run test:http）
 ```
+
+> `orders.data.mjs` 是构建期从 `orders.json` 编译出来的，已在 `.gitignore` 里；
+> `npm run dev` / `build` / `test` 都会先跑 `gen:data`，不用手动管。
+
 
 ---
 
