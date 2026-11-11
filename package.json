@@ -1,0 +1,19 @@
+{
+  "name": "ai-demo-starter",
+  "private": true,
+  "version": "0.3.0",
+  "type": "module",
+  "description": "中文问题 → JSON 查询条件 → 表格结果：一个能上线的 AI 中后台 demo",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "dev": "npm --prefix web run dev",
+    "build": "npm --prefix web run build",
+    "start": "node server.mjs",
+    "test": "node web/server/parser.test.mjs && node web/server/robust.test.mjs && node web/server/summary.test.mjs",
+    "typecheck": "npm --prefix web run typecheck",
+    "spike": "node spike.mjs",
+    "query": "node query.mjs"
+  }
+}
