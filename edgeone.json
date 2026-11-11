@@ -1,0 +1,5 @@
+{
+  "buildCommand": "node scripts/gen-data.mjs && cd web && npm install --no-audit --no-fund && npm run build",
+  "outputDirectory": "web/dist",
+  "installCommand": "npm install --no-audit --no-fund"
+}

@@ -4,6 +4,9 @@ web/node_modules/
 dist/
 web/dist/
 
+# 构建期生成：由 scripts/gen-data.mjs 从 orders.json 编译出来
+orders.data.mjs
+
 # 环境变量：.env.local 里有真实 API Key，绝不提交
 .env
 .env.*

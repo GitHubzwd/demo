@@ -15,20 +15,13 @@ import { runQuery, paginate } from './engine.mjs';
 import { parseWithAI, parseWithAIStream, parseWithRules, aiConfigured, describeError } from './parser.mjs';
 import { ENUMS, FIELD_META, EXAMPLES, todayStr, normalizeQuery, validateQuery } from './schema.mjs';
 
+// 数据是静态模块（由 scripts/gen-data.mjs 生成，位于仓库根）：
+// 打包器会把数组内联进函数，云端不需要文件系统，也不会有 ENOENT。
+import { ORDERS } from '../../orders.data.mjs';
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
-// 数据文件按「显式环境变量 → 当前工作目录 → 源码目录」依次找：
-// 本地是仓库根目录，Vercel 上是 /var/task（orders.json 由 vercel.json 的 includeFiles 带进去）
-export const ORDER_CANDIDATES = [
-  process.env.ORDERS_FILE,
-  path.resolve(process.cwd(), 'orders.json'),
-  path.resolve(process.cwd(), '..', 'orders.json'),
-  path.resolve(HERE, '..', '..', 'orders.json'),
-  path.resolve(HERE, '..', '..', '..', 'orders.json'),
-].filter(Boolean);
-
 // 环境变量文件：不写死 cwd —— 从 web/ 跑 dev 和从仓库根跑 server.mjs，cwd 是不一样的。
-// 曾经因为只找 cwd/.env.local，导致 `npm start` 起来后 aiConfigured=false（好在被这次探测抓到了）。
 const ENV_CANDIDATES = [
   process.env.DOTENV_PATH,
   path.resolve(process.cwd(), '.env.local'),
@@ -61,21 +54,9 @@ export function loadEnvOnce() {
 
 // ---------------------------------------------------------------- 数据
 
-let cache = { rows: [], mtimeMs: 0, file: '' };
-
+/** 数据是构建期内联进来的，这里不再有 fs / ENOENT 的可能 */
 export function loadOrders() {
-  const file = ORDER_CANDIDATES.find((p) => fs.existsSync(p));
-  if (!file) {
-    throw new Error(
-      `找不到 orders.json（找过：${ORDER_CANDIDATES.join('、')}）。本地先跑 node gen-orders.mjs；` +
-        'Vercel 上要确认 vercel.json 里的 includeFiles 带上了它。',
-    );
-  }
-  const stat = fs.statSync(file);
-  if (cache.file !== file || cache.mtimeMs !== stat.mtimeMs) {
-    cache = { rows: JSON.parse(fs.readFileSync(file, 'utf8')), mtimeMs: stat.mtimeMs, file };
-  }
-  return cache.rows;
+  return ORDERS;
 }
 
 // ---------------------------------------------------------------- 限流
