@@ -5,7 +5,7 @@
   "outputDirectory": "web/dist",
   "functions": {
     "api/*.js": {
-      "includeFiles": ["orders.json"]
+      "includeFiles": "orders.json"
     }
   }
 }
