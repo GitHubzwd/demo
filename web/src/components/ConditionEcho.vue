@@ -36,7 +36,7 @@ interface Chip {
   field: string;
   op: string;
   value: string;
-  kind: 'filter' | 'date' | 'sort' | 'limit' | 'chart';
+  kind: 'filter' | 'date' | 'sort' | 'chart';
 }
 
 const DIM_LABEL: Record<string, string> = { region: '按地区', channel: '按渠道', status: '按状态', month: '按月' };
@@ -361,12 +361,12 @@ const timing = computed(() => {
   color: #1d6fb8;
 }
 
-.chip.sort .v {
-  color: #7c3aed;
+.chip.sort {
+  border-style: dashed;
 }
 
-.chip.limit {
-  border-style: dashed;
+.chip.sort .v {
+  color: var(--text);
 }
 
 .chip.chart {

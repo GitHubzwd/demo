@@ -45,7 +45,7 @@ function onKeydown(evt: KeyboardEvent | Event) {
       maxlength="200"
       show-word-limit
       :model-value="modelValue"
-      placeholder="例如：上个月华东区退款超过 500 的订单"
+      placeholder="例如：上个月华东区退款超过 500 的订单（Enter 查询）"
       @update:model-value="onInput"
       @keydown="onKeydown"
     />
@@ -59,13 +59,10 @@ function onKeydown(evt: KeyboardEvent | Event) {
       </div>
 
       <div class="actions">
-        <span class="tip">Enter 查询 · Shift + Enter 换行</span>
-        <div class="btns">
-          <el-button v-if="streaming" text @click="emit('cancel')">取消</el-button>
-          <el-button type="primary" :loading="loading" :disabled="streaming" @click="emit('submit')">
-            {{ streaming ? '解析中' : '查询' }}
-          </el-button>
-        </div>
+        <el-button v-if="streaming" text @click="emit('cancel')">取消</el-button>
+        <el-button type="primary" :loading="loading" :disabled="streaming" @click="emit('submit')">
+          {{ streaming ? '解析中' : '查询' }}
+        </el-button>
       </div>
     </div>
   </div>
@@ -144,27 +141,10 @@ function onKeydown(evt: KeyboardEvent | Event) {
 
 .actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 7px;
-  margin-left: auto;
-  flex: none;
-}
-
-.btns {
-  display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.btns :deep(.el-button.is-text) {
-  color: var(--text-2);
-}
-
-.tip {
-  color: var(--muted);
-  font-size: 11.5px;
-  white-space: nowrap;
+  margin-left: auto;
+  flex: none;
 }
 
 .actions :deep(.el-button) {
@@ -175,9 +155,6 @@ function onKeydown(evt: KeyboardEvent | Event) {
 }
 
 @media (max-width: 720px) {
-  .tip {
-    display: none;
-  }
   .row {
     flex-wrap: wrap;
   }
@@ -185,12 +162,16 @@ function onKeydown(evt: KeyboardEvent | Event) {
     width: 100%;
     justify-content: flex-end;
   }
-  /* 手机上一行横滑，而不是 5 个 chip 竖着占掉半屏 */
+  /* 手机上一行横滑，而不是 3 个 chip 竖着占掉半屏 */
   .examples {
     flex-wrap: nowrap;
     overflow-x: auto;
     padding-bottom: 2px;
+    padding-right: 28px;
     scrollbar-width: none;
+    /* 右侧渐隐：提示「右边还有」，滑到头就自然消失 */
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
   }
   .examples::-webkit-scrollbar {
     display: none;

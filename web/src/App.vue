@@ -201,7 +201,7 @@ async function goPage({ page, pageSize }: { page: number; pageSize: number }) {
       <div class="step">
         <span class="no">1</span>
         <h2>输入</h2>
-        <span class="hint">一句话说清楚你要什么，模型负责翻译</span>
+        <span class="hint">一句话，模型负责翻译</span>
       </div>
       <QueryBar
         v-model="question"
